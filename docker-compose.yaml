@@ -1,0 +1,28 @@
+---
+services:
+  postgres:
+    image: postgres:18.3
+    restart: always
+    shm_size: 128mb
+    environment:
+      # We use trust in dev just to not bother with passwords
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+
+  nats:
+    image: nats:2.12.6
+    command: --jetstream --store_dir /var/lib/jetstream_data
+    volumes:
+      - jetstream_data:/var/lib/jetstream_data
+    ports:
+      - "4222:4222"
+      - "6222:6222"
+      - "8222:8222"
+
+
+volumes:
+  postgres_data:
+  jetstream_data:
