@@ -1,0 +1,17 @@
+[project]
+name = "opendiscovery"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = []
+
+[tool.uv.sources]
+core = { workspace = true }
+auth = { workspace = true }
+
+
+[tool.uv.workspace]
+members = [
+    "libs/*", "services/*"
+]
