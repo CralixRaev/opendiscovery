@@ -1,16 +1,16 @@
 [project]
-name = "auth"
+name = "cli"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = ["core", "nats-callout", "nats-py"]
-
-[project.scripts]
-auth = "auth:main"
+dependencies = ["core"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/auth"]
+packages = ["src/cli"]
+
+[project.scripts]
+cli = "cli:app"
 
 [tool.uv.sources]
 core = { workspace = true }

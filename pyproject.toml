@@ -13,5 +13,8 @@ auth = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "libs/*", "services/*"
+    "libs/*",
+    "services/*",
+    "client",
+    "cli",
 ]
