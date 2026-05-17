@@ -27,6 +27,18 @@ type ScannerCreateResponse = {
   expires_in: number
 }
 
+type ScanJobStatus = 'pending' | 'running' | 'finished' | 'failed'
+
+type ScanJob = {
+  id: number
+  ip_network: string
+  created_at: string
+  finished_at: string | null
+  status: ScanJobStatus
+  tenant_id: number
+  scanner_id: number
+}
+
 const config = useRuntimeConfig()
 const toast = useToast()
 
@@ -40,17 +52,27 @@ const scannerForm = reactive({
   name: ''
 })
 
+const scanJobForm = reactive({
+  ip_network: '',
+  scanner_id: ''
+})
+
 const loginLoading = ref(false)
 const sessionLoading = ref(true)
 const scannersLoading = ref(false)
 const scannerCreating = ref(false)
+const scanJobsLoading = ref(false)
+const scanJobCreating = ref(false)
 const auth = ref<LoginResponse | null>(null)
 const scanners = ref<Scanner[]>([])
+const scanJobs = ref<ScanJob[]>([])
 const issuedScannerToken = ref<string | null>(null)
 const issuedScannerName = ref<string | null>(null)
 
 const apiBaseUrl = computed(() => String(config.public.apiBaseUrl).replace(/\/$/, ''))
 const isAuthenticated = computed(() => auth.value !== null)
+let scanJobsPollingTimer: number | null = null
+let scanJobsRequestInFlight = false
 
 function authHeaders(): Record<string, string> {
   if (!auth.value) {
@@ -69,8 +91,10 @@ function persistSession(response: LoginResponse) {
 }
 
 function clearSession() {
+  stopScanJobsPolling()
   auth.value = null
   scanners.value = []
+  scanJobs.value = []
   issuedScannerToken.value = null
   issuedScannerName.value = null
   localStorage.removeItem('opendiscovery.accessToken')
@@ -93,7 +117,8 @@ async function restoreSession() {
       headers: authHeaders()
     })
     auth.value = { ...parsed, user }
-    await loadScanners()
+    await Promise.all([loadScanners(), loadScanJobs()])
+    startScanJobsPolling()
   } catch {
     clearSession()
   } finally {
@@ -112,7 +137,8 @@ async function submitLogin() {
 
     persistSession(response)
     loginForm.password = ''
-    await loadScanners()
+    await Promise.all([loadScanners(), loadScanJobs()])
+    startScanJobsPolling()
 
     toast.add({
       title: 'Вход выполнен',
@@ -156,6 +182,60 @@ async function loadScanners() {
   }
 }
 
+async function loadScanJobs(options: { silent?: boolean } = {}) {
+  if (!auth.value) {
+    return
+  }
+
+  if (scanJobsRequestInFlight) {
+    return
+  }
+
+  scanJobsRequestInFlight = true
+
+  if (!options.silent) {
+    scanJobsLoading.value = true
+  }
+
+  try {
+    scanJobs.value = await $fetch<ScanJob[]>(`${apiBaseUrl.value}/api/scan-jobs`, {
+      headers: authHeaders()
+    })
+  } catch {
+    if (!options.silent) {
+      toast.add({
+        title: 'Не удалось загрузить задания',
+        color: 'error',
+        icon: 'i-lucide-circle-alert'
+      })
+    }
+  } finally {
+    scanJobsRequestInFlight = false
+    if (!options.silent) {
+      scanJobsLoading.value = false
+    }
+  }
+}
+
+function startScanJobsPolling() {
+  if (scanJobsPollingTimer !== null) {
+    return
+  }
+
+  scanJobsPollingTimer = window.setInterval(() => {
+    void loadScanJobs({ silent: true })
+  }, 5000)
+}
+
+function stopScanJobsPolling() {
+  if (scanJobsPollingTimer === null) {
+    return
+  }
+
+  window.clearInterval(scanJobsPollingTimer)
+  scanJobsPollingTimer = null
+}
+
 async function createScanner() {
   if (!auth.value) {
     return
@@ -173,6 +253,9 @@ async function createScanner() {
     })
 
     scanners.value = [response.scanner, ...scanners.value]
+    if (!scanJobForm.scanner_id) {
+      scanJobForm.scanner_id = String(response.scanner.id)
+    }
     issuedScannerToken.value = response.scanner_token
     issuedScannerName.value = response.scanner.name
     scannerForm.name = ''
@@ -192,6 +275,44 @@ async function createScanner() {
     })
   } finally {
     scannerCreating.value = false
+  }
+}
+
+async function createScanJob() {
+  if (!auth.value) {
+    return
+  }
+
+  scanJobCreating.value = true
+
+  try {
+    const response = await $fetch<ScanJob>(`${apiBaseUrl.value}/api/scan-jobs`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: {
+        ip_network: scanJobForm.ip_network,
+        scanner_id: Number(scanJobForm.scanner_id)
+      }
+    })
+
+    scanJobs.value = [response, ...scanJobs.value]
+    scanJobForm.ip_network = ''
+
+    toast.add({
+      title: 'Задание создано',
+      description: response.ip_network,
+      color: 'success',
+      icon: 'i-lucide-play'
+    })
+  } catch {
+    toast.add({
+      title: 'Не удалось создать задание',
+      description: 'Выберите сканер и проверьте подсеть',
+      color: 'error',
+      icon: 'i-lucide-circle-alert'
+    })
+  } finally {
+    scanJobCreating.value = false
   }
 }
 
@@ -219,7 +340,38 @@ function formatDate(value: string) {
   }).format(new Date(value))
 }
 
+function scannerName(scannerId: number) {
+  return scanners.value.find(scanner => scanner.id === scannerId)?.name ?? `scanner #${scannerId}`
+}
+
+function scanJobStatusColor(status: ScanJobStatus) {
+  if (status === 'finished') {
+    return 'success'
+  }
+  if (status === 'failed') {
+    return 'error'
+  }
+  if (status === 'running') {
+    return 'warning'
+  }
+  return 'neutral'
+}
+
+function scanJobStatusIcon(status: ScanJobStatus) {
+  if (status === 'finished') {
+    return 'i-lucide-circle-check'
+  }
+  if (status === 'failed') {
+    return 'i-lucide-circle-x'
+  }
+  if (status === 'running') {
+    return 'i-lucide-loader-circle'
+  }
+  return 'i-lucide-clock'
+}
+
 onMounted(restoreSession)
+onUnmounted(stopScanJobsPolling)
 </script>
 
 <template>
@@ -429,6 +581,80 @@ onMounted(restoreSession)
             :rows="6"
           />
         </UCard>
+
+        <UCard
+          class="mt-6"
+          variant="subtle"
+          :ui="{ root: 'rounded-lg', body: 'p-5 sm:p-6' }"
+        >
+          <template #header>
+            <div class="flex items-center gap-3">
+              <UIcon
+                name="i-lucide-play"
+                class="size-5 text-primary"
+              />
+              <h2 class="text-base font-semibold text-highlighted">
+                Новое задание
+              </h2>
+            </div>
+          </template>
+
+          <form
+            class="space-y-5"
+            @submit.prevent="createScanJob"
+          >
+            <UFormField
+              label="Подсеть"
+              name="scan-job-ip-network"
+              required
+            >
+              <UInput
+                v-model="scanJobForm.ip_network"
+                class="w-full"
+                icon="i-lucide-network"
+                placeholder="192.168.1.0/24"
+                required
+                maxlength="128"
+              />
+            </UFormField>
+
+            <UFormField
+              label="Сканер"
+              name="scan-job-scanner"
+              required
+            >
+              <select
+                v-model="scanJobForm.scanner_id"
+                class="h-9 w-full rounded-md border border-default bg-default px-3 text-sm text-highlighted outline-none focus:border-primary"
+                required
+              >
+                <option
+                  value=""
+                  disabled
+                >
+                  Выберите сканер
+                </option>
+                <option
+                  v-for="scanner in scanners"
+                  :key="scanner.id"
+                  :value="String(scanner.id)"
+                >
+                  {{ scanner.name }}
+                </option>
+              </select>
+            </UFormField>
+
+            <UButton
+              type="submit"
+              block
+              icon="i-lucide-send"
+              :loading="scanJobCreating"
+              :disabled="!scanners.length"
+            >
+              Создать и отправить
+            </UButton>
+          </form>
+        </UCard>
       </section>
 
       <section>
@@ -478,6 +704,55 @@ onMounted(restoreSession)
           variant="subtle"
           icon="i-lucide-inbox"
           title="Сканеров пока нет"
+        />
+
+        <div class="mb-4 mt-8 flex items-center justify-between gap-3">
+          <h2 class="text-base font-semibold text-highlighted">
+            Задания
+          </h2>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-refresh-cw"
+            :loading="scanJobsLoading"
+            @click="() => loadScanJobs()"
+          />
+        </div>
+
+        <div
+          v-if="scanJobs.length"
+          class="overflow-hidden rounded-lg border border-default"
+        >
+          <div
+            v-for="scanJob in scanJobs"
+            :key="scanJob.id"
+            class="grid gap-3 border-b border-default px-4 py-4 last:border-b-0 sm:grid-cols-[1fr_auto] sm:items-center"
+          >
+            <div class="min-w-0">
+              <p class="truncate font-medium text-highlighted">
+                {{ scanJob.ip_network }}
+              </p>
+              <p class="mt-1 text-sm text-muted">
+                ID {{ scanJob.id }} · {{ scannerName(scanJob.scanner_id) }} · {{ formatDate(scanJob.created_at) }}
+              </p>
+            </div>
+            <UBadge
+              :color="scanJobStatusColor(scanJob.status)"
+              variant="subtle"
+              :icon="scanJobStatusIcon(scanJob.status)"
+              :class="{ 'animate-pulse': scanJob.status === 'running' }"
+            >
+              {{ scanJob.status }}
+            </UBadge>
+          </div>
+        </div>
+
+        <UAlert
+          v-else
+          color="neutral"
+          variant="subtle"
+          icon="i-lucide-clipboard-list"
+          title="Заданий пока нет"
         />
       </section>
     </div>

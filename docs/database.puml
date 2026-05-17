@@ -39,7 +39,7 @@ package "Core" {
     entity ScanJob {
       * id : int <<generated>>
       --
-      * name : varchar(128)
+      * ip_network : varchar(128)
       * created_at : timestamptz <<generated>>
       * finished_at : timestamptz
       * status : Enum

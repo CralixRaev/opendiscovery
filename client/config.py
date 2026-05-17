@@ -17,7 +17,7 @@ class ClientConfig(BaseSettings):
 
     nats_url: str = Field(default="nats://localhost:4222")
     scanner_token: str = Field()
-    nats_subject: str | None = Field()
+    nats_subject: str | None = Field(default=None)
     client_name: str = Field(default="opendiscovery-scanner-client")
 
     @property
@@ -42,4 +42,7 @@ class ClientConfig(BaseSettings):
     def subject(self) -> str:
         if self.nats_subject:
             return self.nats_subject
-        return f"{TENANT_SUBJECT_PREFIX}.{self.tenant_id}.scanners.{self.scanner_id}.events"
+        return f"{TENANT_SUBJECT_PREFIX}.{self.tenant_id}.scanners.{self.scanner_id}.jobs"
+
+    def scan_job_status_subject(self, scan_job_id: int) -> str:
+        return f"{self.subject}.{scan_job_id}.status"

@@ -7,6 +7,7 @@ requires-python = ">=3.14"
 dependencies = [
     "core",
     "fastapi[standard]>=0.124.0",
+    "nats-py",
     "pyjwt>=2.12.1",
     "uvicorn[standard]>=0.38.0",
 ]

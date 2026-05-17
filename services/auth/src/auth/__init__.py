@@ -80,6 +80,8 @@ class AuthCalloutService(BaseAuthCalloutService):
         scanner_id = claims["scanner_id"]
         tenant_id = claims["tenant_id"]
 
+        scanner_subject_prefix = f"{TENANT_SUBJECT_PREFIX}.{tenant_id}.scanners.{scanner_id}"
+
         return UserData(
             version=auth_request_data.version,
             tags=[
@@ -88,8 +90,8 @@ class AuthCalloutService(BaseAuthCalloutService):
                 f"scanner:{scanner_id}",
                 f"tenant:{tenant_id}",
             ],
-            pub=PubSubPermissions(allow=[f"{TENANT_SUBJECT_PREFIX}.{tenant_id}.>"]),
-            sub=PubSubPermissions(allow=[f"{TENANT_SUBJECT_PREFIX}.{tenant_id}.>"]),
+            pub=PubSubPermissions(allow=[f"{scanner_subject_prefix}.>"]),
+            sub=PubSubPermissions(allow=[f"{scanner_subject_prefix}.>"]),
         )
 
 

@@ -18,7 +18,7 @@ erDiagram
     }
     ScanJob {
         int id PK
-        varchar name
+        varchar ip_network
         timestamptz created_at
         timestamptz finished_at
         enum status

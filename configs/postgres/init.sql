@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS "scanner" (
 
 CREATE TABLE IF NOT EXISTS "scanjob" (
     "id" SERIAL NOT NULL PRIMARY KEY,
-    "name" VARCHAR(128) NOT NULL,
+    "ip_network" VARCHAR(128) NOT NULL,
     "created_at" TIMESTAMPTZ NOT NULL,
     "finished_at" TIMESTAMPTZ,
     "status" VARCHAR(32) NOT NULL,

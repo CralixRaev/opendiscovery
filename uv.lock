@@ -153,6 +153,7 @@ source = { editable = "services/backend" }
 dependencies = [
     { name = "core" },
     { name = "fastapi", extra = ["standard"] },
+    { name = "nats-py" },
     { name = "pyjwt" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -161,6 +162,7 @@ dependencies = [
 requires-dist = [
     { name = "core", editable = "libs/core" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.124.0" },
+    { name = "nats-py" },
     { name = "pyjwt", specifier = ">=2.12.1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.38.0" },
 ]
