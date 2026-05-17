@@ -1,4 +1,7 @@
 # OpenDiscovery scanner client
+
+Requires `nmap` in `PATH`.
+
 ```
 export OPENDISCOVERY_SCANNER_TOKEN="<scanner token from /scanners>"
 ```

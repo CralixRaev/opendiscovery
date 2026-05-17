@@ -46,3 +46,6 @@ class ClientConfig(BaseSettings):
 
     def scan_job_status_subject(self, scan_job_id: int) -> str:
         return f"{self.subject}.{scan_job_id}.status"
+
+    def scan_job_result_subject(self, scan_job_id: int) -> str:
+        return f"{self.subject}.{scan_job_id}.result"

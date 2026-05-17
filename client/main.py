@@ -5,6 +5,7 @@ import nats
 from nats.errors import Error
 
 from config import ClientConfig
+from nmap_scan import NmapScanError, NmapScanResult, scan_alive_hosts
 
 
 async def publish_status(nc, config: ClientConfig, scan_job: dict, status: str) -> None:
@@ -15,6 +16,24 @@ async def publish_status(nc, config: ClientConfig, scan_job: dict, status: str) 
         "status": status,
     }
     await nc.publish(config.scan_job_status_subject(scan_job["id"]), json.dumps(payload).encode())
+    await nc.flush()
+
+
+async def publish_result(nc, config: ClientConfig, scan_job: dict, result: NmapScanResult) -> None:
+    payload = {
+        "id": scan_job["id"],
+        "tenant_id": scan_job["tenant_id"],
+        "scanner_id": scan_job["scanner_id"],
+        "ip_network": result.target,
+        "alive_hosts": [
+            {
+                "ip": host.ip,
+                "hostname": host.hostname,
+            }
+            for host in result.alive_hosts
+        ],
+    }
+    await nc.publish(config.scan_job_result_subject(scan_job["id"]), json.dumps(payload).encode())
     await nc.flush()
 
 
@@ -34,10 +53,19 @@ async def process_scan_job(nc, config: ClientConfig, msg) -> None:
     await publish_status(nc, config, scan_job, "running")
     print(f"scan job #{scan_job['id']} is running")
 
-    await asyncio.sleep(30)
+    try:
+        scan_result = await scan_alive_hosts(scan_job["ip_network"])
+    except (ValueError, NmapScanError) as exc:
+        await publish_status(nc, config, scan_job, "failed")
+        print(f"scan job #{scan_job['id']} failed: {exc}")
+        return
 
+    await publish_result(nc, config, scan_job, scan_result)
     await publish_status(nc, config, scan_job, "finished")
-    print(f"scan job #{scan_job['id']} is finished")
+    print(
+        f"scan job #{scan_job['id']} is finished: "
+        f"{len(scan_result.alive_hosts)} alive host(s) found"
+    )
 
 
 async def run() -> None:

@@ -75,6 +75,29 @@ async def list_scan_jobs_for_tenant(tenant_id: int) -> list[ScanJob]:
     return await ScanJob.filter(tenant_id=tenant_id).order_by("-created_at", "-id")
 
 
+async def find_scan_job_for_scanner(
+    scan_job_id: int,
+    tenant_id: int,
+    scanner_id: int,
+) -> ScanJob | None:
+    if use_raw_queries():
+        connection = ScanJob._meta.db
+        rows = await connection.execute_query_dict(
+            (
+                'SELECT "id", "ip_network", "created_at", "finished_at", "status", "tenant_id", "scanner_id" '
+                'FROM "scanjob" '
+                'WHERE "id" = $1 AND "tenant_id" = $2 AND "scanner_id" = $3 '
+                'LIMIT 1'
+            ),
+            [scan_job_id, tenant_id, scanner_id],
+        )
+        if not rows:
+            return None
+        return _scan_job_from_row(rows[0])
+
+    return await ScanJob.get_or_none(id=scan_job_id, tenant_id=tenant_id, scanner_id=scanner_id)
+
+
 async def update_scan_job_status(
     scan_job_id: int,
     tenant_id: int,
