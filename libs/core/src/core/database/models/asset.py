@@ -1,4 +1,7 @@
+from typing import Literal
+
 from tortoise import Model, fields
+from tortoise.expressions import Q
 
 from core.database import mark_from_db, use_raw_queries
 from core.database.fields import InetField
@@ -37,6 +40,17 @@ class HostPort(Model):
 
     def __str__(self) -> str:
         return f'{self.host_id}:{self.port_id}'
+
+
+HostSortBy = Literal["id", "ip", "created_at", "updated_at"]
+SortDirection = Literal["asc", "desc"]
+
+_HOST_SORT_COLUMNS: dict[HostSortBy, str] = {
+    "id": '"id"',
+    "ip": '"ip"',
+    "created_at": '"created_at"',
+    "updated_at": '"updated_at"',
+}
 
 
 async def get_or_create_host(tenant_id: int, ip: str) -> Host:
@@ -149,26 +163,119 @@ async def get_or_create_host_port(tenant_id: int, host_id: int, port_id: int) ->
     return host_port
 
 
-async def list_hosts_for_tenant(tenant_id: int) -> list[Host]:
+def _host_search_condition(search: str) -> Q:
+    condition = Q(ip__icontains=search) | Q(host_ports__port__service_name__icontains=search)
+    if search.isdigit():
+        value = int(search)
+        condition |= Q(id=value) | Q(host_ports__port__number=value)
+    return condition
+
+
+async def list_hosts_for_tenant(
+    tenant_id: int,
+    *,
+    search: str = "",
+    sort_by: HostSortBy = "updated_at",
+    sort_direction: SortDirection = "desc",
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[Host]:
+    search = search.strip()
+    if use_raw_queries():
+        connection = Host._meta.db
+        order_column = _HOST_SORT_COLUMNS[sort_by]
+        order_direction = "ASC" if sort_direction == "asc" else "DESC"
+        pagination_sql = ""
+        params: list[object] = [tenant_id, search, f"%{search}%"]
+        if limit is not None:
+            pagination_sql = 'LIMIT $4 OFFSET $5'
+            params.extend([limit, offset])
+        rows = await connection.execute_query_dict(
+            (
+                'SELECT h."id", h."ip", h."created_at", h."updated_at", h."tenant_id" '
+                'FROM "host" h '
+                'WHERE h."tenant_id" = $1 '
+                'AND ('
+                '    $2 = \'\' '
+                '    OR h."ip"::text ILIKE $3 '
+                '    OR h."id"::text = $2 '
+                '    OR EXISTS ('
+                '        SELECT 1 '
+                '        FROM "hostport" hp '
+                '        JOIN "port" p ON p."id" = hp."port_id" '
+                '        WHERE hp."host_id" = h."id" '
+                '        AND hp."tenant_id" = h."tenant_id" '
+                '        AND (p."service_name" ILIKE $3 OR p."number"::text ILIKE $3)'
+                '    )'
+                ') '
+                f'ORDER BY h.{order_column} {order_direction}, h."id" {order_direction} '
+                f'{pagination_sql}'
+            ),
+            params,
+        )
+        return [_host_from_row(row) for row in rows]
+
+    query = Host.filter(tenant_id=tenant_id)
+    if search:
+        query = query.filter(_host_search_condition(search)).distinct()
+
+    direction_prefix = "" if sort_direction == "asc" else "-"
+    query = query.order_by(f"{direction_prefix}{sort_by}", f"{direction_prefix}id")
+    if offset:
+        query = query.offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+    return await query
+
+
+async def count_hosts_for_tenant(tenant_id: int, *, search: str = "") -> int:
+    search = search.strip()
     if use_raw_queries():
         connection = Host._meta.db
         rows = await connection.execute_query_dict(
             (
-                'SELECT "id", "ip", "created_at", "updated_at", "tenant_id" '
-                'FROM "host" '
-                'WHERE "tenant_id" = $1 '
-                'ORDER BY "updated_at" DESC, "id" DESC'
+                'SELECT COUNT(*) AS "count" '
+                'FROM "host" h '
+                'WHERE h."tenant_id" = $1 '
+                'AND ('
+                '    $2 = \'\' '
+                '    OR h."ip"::text ILIKE $3 '
+                '    OR h."id"::text = $2 '
+                '    OR EXISTS ('
+                '        SELECT 1 '
+                '        FROM "hostport" hp '
+                '        JOIN "port" p ON p."id" = hp."port_id" '
+                '        WHERE hp."host_id" = h."id" '
+                '        AND hp."tenant_id" = h."tenant_id" '
+                '        AND (p."service_name" ILIKE $3 OR p."number"::text ILIKE $3)'
+                '    )'
+                ')'
             ),
-            [tenant_id],
+            [tenant_id, search, f"%{search}%"],
         )
-        return [_host_from_row(row) for row in rows]
+        return rows[0]["count"]
 
-    return await Host.filter(tenant_id=tenant_id).order_by("-updated_at", "-id")
+    query = Host.filter(tenant_id=tenant_id)
+    if search:
+        query = query.filter(_host_search_condition(search)).distinct()
+    return await query.count()
 
 
-async def list_open_ports_by_host_for_tenant(tenant_id: int) -> dict[int, list[Port]]:
+async def list_open_ports_by_host_for_tenant(
+    tenant_id: int,
+    host_ids: list[int] | None = None,
+) -> dict[int, list[Port]]:
+    if host_ids is not None and not host_ids:
+        return {}
+
     if use_raw_queries():
         connection = HostPort._meta.db
+        host_filter_sql = ""
+        params: list[object] = [tenant_id]
+        if host_ids is not None:
+            placeholders = ", ".join(f"${index}" for index in range(2, len(host_ids) + 2))
+            host_filter_sql = f'AND hp."host_id" IN ({placeholders}) '
+            params.extend(host_ids)
         rows = await connection.execute_query_dict(
             (
                 'SELECT '
@@ -177,12 +284,16 @@ async def list_open_ports_by_host_for_tenant(tenant_id: int) -> dict[int, list[P
                 'FROM "hostport" hp '
                 'JOIN "port" p ON p."id" = hp."port_id" '
                 'WHERE hp."tenant_id" = $1 '
+                f'{host_filter_sql}'
                 'ORDER BY hp."host_id", p."number", p."service_name"'
             ),
-            [tenant_id],
+            params,
         )
     else:
-        rows = await HostPort.filter(tenant_id=tenant_id).select_related("port").order_by(
+        query = HostPort.filter(tenant_id=tenant_id)
+        if host_ids is not None:
+            query = query.filter(host_id__in=host_ids)
+        rows = await query.select_related("port").order_by(
             "host_id",
             "port__number",
             "port__service_name",

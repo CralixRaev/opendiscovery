@@ -2,6 +2,7 @@
 import type {
   BadgeColor,
   DiscoveredHost,
+  HostTableState,
   ScanJob,
   ScanJobForm,
   ScanJobStatus,
@@ -16,11 +17,12 @@ defineProps<{
   formatDate: (value: string) => string
   hosts: DiscoveredHost[]
   hostsLoading: boolean
+  hostPageCount: number
   issuedScannerName: string | null
   issuedScannerToken: string | null
   loadScanners: () => Promise<void>
   loadScanJobs: () => Promise<void>
-  loadHosts: () => Promise<void>
+  loadHosts: (options?: { silent?: boolean, resetPage?: boolean }) => Promise<void>
   scanJobCreating: boolean
   scanJobStatusColor: (status: ScanJobStatus) => BadgeColor
   scanJobStatusIcon: (status: ScanJobStatus) => string
@@ -34,6 +36,7 @@ defineProps<{
 
 const scannerForm = defineModel<ScannerForm>('scannerForm', { required: true })
 const scanJobForm = defineModel<ScanJobForm>('scanJobForm', { required: true })
+const hostTableState = defineModel<HostTableState>('hostTableState', { required: true })
 
 const activeTab = ref('home')
 const dashboardTabs = [
@@ -113,9 +116,11 @@ const dashboardTabs = [
 
     <template #hosts>
       <DashboardHostTable
+        v-model:host-table-state="hostTableState"
         :format-date="formatDate"
         :hosts="hosts"
         :hosts-loading="hostsLoading"
+        :host-page-count="hostPageCount"
         :load-hosts="loadHosts"
       />
     </template>

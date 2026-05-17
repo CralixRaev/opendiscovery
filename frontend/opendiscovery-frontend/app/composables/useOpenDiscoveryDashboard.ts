@@ -62,6 +62,28 @@ export type DiscoveredHost = {
   }>
 }
 
+export type HostSortBy = 'id' | 'ip' | 'created_at' | 'updated_at'
+export type HostSortDirection = 'asc' | 'desc'
+
+export type HostListResponse = {
+  items: DiscoveredHost[]
+  total: number
+  page: number
+  page_size: number
+  search: string
+  sort_by: HostSortBy
+  sort_direction: HostSortDirection
+}
+
+export type HostTableState = {
+  search: string
+  page: number
+  pageSize: number
+  total: number
+  sortBy: HostSortBy
+  sortDirection: HostSortDirection
+}
+
 export type ScanJobForm = {
   ip_network: string
   scanner_id: string
@@ -87,6 +109,14 @@ export function useOpenDiscoveryDashboard() {
     ip_network: '',
     scanner_id: ''
   })
+  const hostTableState = reactive<HostTableState>({
+    search: '',
+    page: 1,
+    pageSize: 20,
+    total: 0,
+    sortBy: 'updated_at',
+    sortDirection: 'desc'
+  })
 
   const loginLoading = ref(false)
   const sessionLoading = ref(true)
@@ -104,6 +134,7 @@ export function useOpenDiscoveryDashboard() {
 
   const apiBaseUrl = computed(() => String(config.public.apiBaseUrl).replace(/\/$/, ''))
   const isAuthenticated = computed(() => auth.value !== null)
+  const hostPageCount = computed(() => Math.max(Math.ceil(hostTableState.total / hostTableState.pageSize), 1))
   let scanJobsPollingTimer: number | null = null
   let scanJobsRequestInFlight = false
   let hostsRequestInFlight = false
@@ -130,6 +161,11 @@ export function useOpenDiscoveryDashboard() {
     scanners.value = []
     scanJobs.value = []
     hosts.value = []
+    hostTableState.search = ''
+    hostTableState.page = 1
+    hostTableState.total = 0
+    hostTableState.sortBy = 'updated_at'
+    hostTableState.sortDirection = 'desc'
     issuedScannerToken.value = null
     issuedScannerName.value = null
     localStorage.removeItem('opendiscovery.accessToken')
@@ -252,7 +288,7 @@ export function useOpenDiscoveryDashboard() {
     }
   }
 
-  async function loadHosts(options: { silent?: boolean } = {}) {
+  async function loadHosts(options: { silent?: boolean, resetPage?: boolean } = {}) {
     if (!auth.value) {
       return
     }
@@ -262,15 +298,31 @@ export function useOpenDiscoveryDashboard() {
     }
 
     hostsRequestInFlight = true
+    if (options.resetPage) {
+      hostTableState.page = 1
+    }
 
     if (!options.silent) {
       hostsLoading.value = true
     }
 
     try {
-      hosts.value = await $fetch<DiscoveredHost[]>(`${apiBaseUrl.value}/api/hosts`, {
-        headers: authHeaders()
+      const response = await $fetch<HostListResponse>(`${apiBaseUrl.value}/api/hosts`, {
+        headers: authHeaders(),
+        query: {
+          page: hostTableState.page,
+          page_size: hostTableState.pageSize,
+          search: hostTableState.search,
+          sort_by: hostTableState.sortBy,
+          sort_direction: hostTableState.sortDirection
+        }
       })
+      hosts.value = response.items
+      hostTableState.total = response.total
+      hostTableState.page = response.page
+      hostTableState.pageSize = response.page_size
+      hostTableState.sortBy = response.sort_by
+      hostTableState.sortDirection = response.sort_direction
     } catch {
       if (!options.silent) {
         toast.add({
@@ -452,6 +504,8 @@ export function useOpenDiscoveryDashboard() {
     formatDate,
     hosts,
     hostsLoading,
+    hostPageCount,
+    hostTableState,
     isAuthenticated,
     issuedScannerName,
     issuedScannerToken,

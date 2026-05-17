@@ -7,6 +7,8 @@ const {
   formatDate,
   hosts,
   hostsLoading,
+  hostPageCount,
+  hostTableState,
   isAuthenticated,
   issuedScannerName,
   issuedScannerToken,
@@ -62,12 +64,14 @@ const {
     <DashboardTabs
       v-model:scanner-form="scannerForm"
       v-model:scan-job-form="scanJobForm"
+      v-model:host-table-state="hostTableState"
       :copy-scanner-token="copyScannerToken"
       :create-scanner="createScanner"
       :create-scan-job="createScanJob"
       :format-date="formatDate"
       :hosts="hosts"
       :hosts-loading="hostsLoading"
+      :host-page-count="hostPageCount"
       :issued-scanner-name="issuedScannerName"
       :issued-scanner-token="issuedScannerToken"
       :load-scanners="loadScanners"
