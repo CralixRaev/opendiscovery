@@ -73,7 +73,11 @@ const dashboardTabs = [
     :ui="{ content: 'pt-6' }"
   >
     <template #home>
-      <section class="min-h-[320px]" />
+      <DashboardHostDiscoveryDashboard
+        :hosts="hosts"
+        :hosts-loading="hostsLoading"
+        :load-hosts="loadHosts"
+      />
     </template>
 
     <template #scanners>
