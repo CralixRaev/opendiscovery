@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import type { Options, SeriesBarOptions, SeriesColumnOptions } from 'highcharts'
 import type { DiscoveredHost } from '~/composables/useOpenDiscoveryDashboard'
+
+import HighchartsChart from './HighchartsChart.client.vue'
 
 const props = defineProps<{
   hosts: DiscoveredHost[]
@@ -69,8 +72,6 @@ const hostChartData = computed<HostChartPoint[]>(() => {
   })
 })
 
-const maxHostCount = computed(() => Math.max(...hostChartData.value.map(point => point.count), 1))
-
 const portChartData = computed<PortChartPoint[]>(() => {
   const ports = new Map<number, { count: number, services: Set<string> }>()
 
@@ -102,8 +103,194 @@ const portChartData = computed<PortChartPoint[]>(() => {
     .slice(0, 5)
 })
 
-const maxPortCount = computed(() => Math.max(...portChartData.value.map(point => point.count), 1))
 const totalOpenPorts = computed(() => props.hosts.reduce((sum, host) => sum + host.open_ports.length, 0))
+
+const chartTextColor = '#64748b'
+const chartGridColor = 'rgba(148, 163, 184, 0.22)'
+const chartPrimaryColor = '#00A155'
+
+const baseChartOptions: Options = {
+  accessibility: {
+    enabled: false
+  },
+  chart: {
+    backgroundColor: 'transparent',
+    spacing: [8, 8, 8, 8],
+    style: {
+      fontFamily: 'inherit'
+    }
+  },
+  credits: {
+    enabled: false
+  },
+  legend: {
+    enabled: false
+  },
+  title: {
+    text: undefined
+  },
+  tooltip: {
+    backgroundColor: '#0f172a',
+    borderColor: '#1e293b',
+    borderRadius: 6,
+    shadow: false,
+    style: {
+      color: '#f8fafc',
+      fontSize: '12px'
+    }
+  }
+}
+
+const hostChartOptions = computed<Options>(() => {
+  const series: SeriesColumnOptions = {
+    type: 'column',
+    name: 'Хосты',
+    data: hostChartData.value.map(point => point.count),
+    color: chartPrimaryColor
+  }
+
+  return {
+    ...baseChartOptions,
+    chart: {
+      ...baseChartOptions.chart,
+      type: 'column',
+      height: 208
+    },
+    xAxis: {
+      categories: hostChartData.value.map(point => point.label),
+      crosshair: {
+        color: 'rgba(0, 161, 85, 0.12)'
+      },
+      lineColor: chartGridColor,
+      tickColor: chartGridColor,
+      labels: {
+        autoRotation: [-45],
+        style: {
+          color: chartTextColor,
+          fontSize: '11px'
+        }
+      }
+    },
+    yAxis: {
+      allowDecimals: false,
+      gridLineColor: chartGridColor,
+      min: 0,
+      title: {
+        text: undefined
+      },
+      labels: {
+        style: {
+          color: chartTextColor,
+          fontSize: '11px'
+        }
+      }
+    },
+    plotOptions: {
+      column: {
+        borderWidth: 0,
+        borderRadius: 4,
+        groupPadding: 0.06,
+        pointPadding: 0.08
+      },
+      series: {
+        animation: {
+          duration: 180
+        },
+        states: {
+          inactive: {
+            opacity: 1
+          }
+        }
+      }
+    },
+    tooltip: {
+      ...baseChartOptions.tooltip,
+      headerFormat: '<span>{point.key}</span><br/>',
+      pointFormat: '<b>{point.y}</b> хостов'
+    },
+    series: [series]
+  }
+})
+
+const portChartOptions = computed<Options>(() => {
+  const series: SeriesBarOptions = {
+    type: 'bar',
+    name: 'Хосты',
+    data: portChartData.value.map(point => point.count),
+    color: chartPrimaryColor
+  }
+
+  return {
+    ...baseChartOptions,
+    chart: {
+      ...baseChartOptions.chart,
+      type: 'bar',
+      height: 208
+    },
+    xAxis: {
+      categories: portChartData.value.map(point => point.label),
+      lineColor: chartGridColor,
+      tickColor: chartGridColor,
+      labels: {
+        style: {
+          color: chartTextColor,
+          fontSize: '12px',
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+        }
+      }
+    },
+    yAxis: {
+      allowDecimals: false,
+      gridLineColor: chartGridColor,
+      min: 0,
+      title: {
+        text: undefined
+      },
+      labels: {
+        style: {
+          color: chartTextColor,
+          fontSize: '11px'
+        }
+      }
+    },
+    plotOptions: {
+      bar: {
+        borderWidth: 0,
+        borderRadius: 4,
+        groupPadding: 0.14,
+        pointPadding: 0.08
+      },
+      series: {
+        animation: {
+          duration: 180
+        },
+        dataLabels: {
+          enabled: true,
+          allowOverlap: false,
+          crop: false,
+          overflow: 'allow',
+          style: {
+            color: chartTextColor,
+            fontSize: '12px',
+            fontWeight: '600',
+            textOutline: 'none'
+          }
+        },
+        states: {
+          inactive: {
+            opacity: 1
+          }
+        }
+      }
+    },
+    tooltip: {
+      ...baseChartOptions.tooltip,
+      headerFormat: '<span>Порт {point.key}</span><br/>',
+      pointFormat: '<b>{point.y}</b> хостов'
+    },
+    series: [series]
+  }
+})
 </script>
 
 <template>
@@ -129,27 +316,10 @@ const totalOpenPorts = computed(() => props.hosts.reduce((sum, host) => sum + ho
         </div>
 
         <div class="overflow-x-auto px-4 py-5">
-          <div class="flex h-52 min-w-[720px] items-end gap-2">
-            <div
-              v-for="point in hostChartData"
-              :key="point.key"
-              class="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-2"
-              :title="`${point.label}: ${point.count}`"
-            >
-              <span class="text-xs font-medium text-muted">
-                {{ point.count }}
-              </span>
-              <div class="flex h-36 w-full items-end rounded bg-muted/50">
-                <div
-                  class="w-full rounded bg-primary transition-[height]"
-                  :style="{ height: `${Math.max((point.count / maxHostCount) * 100, point.count ? 8 : 0)}%` }"
-                />
-              </div>
-              <span class="w-12 truncate text-center text-xs text-muted">
-                {{ point.label }}
-              </span>
-            </div>
-          </div>
+          <HighchartsChart
+            class="h-52 min-w-[720px]"
+            :options="hostChartOptions"
+          />
         </div>
       </div>
 
@@ -170,30 +340,11 @@ const totalOpenPorts = computed(() => props.hosts.reduce((sum, host) => sum + ho
         </div>
 
         <div class="px-4 py-5">
-          <div
+          <HighchartsChart
             v-if="portChartData.length"
-            class="space-y-4"
-          >
-            <div
-              v-for="point in portChartData"
-              :key="point.key"
-              class="grid grid-cols-[5.5rem_minmax(0,1fr)_2.5rem] items-center gap-3"
-              :title="`${point.label}: ${point.count}`"
-            >
-              <span class="truncate font-mono text-sm font-medium text-highlighted">
-                {{ point.label }}
-              </span>
-              <div class="h-3 overflow-hidden rounded bg-muted/50">
-                <div
-                  class="h-full rounded bg-primary transition-[width]"
-                  :style="{ width: `${Math.max((point.count / maxPortCount) * 100, 6)}%` }"
-                />
-              </div>
-              <span class="text-right text-sm font-medium text-muted">
-                {{ point.count }}
-              </span>
-            </div>
-          </div>
+            class="h-52"
+            :options="portChartOptions"
+          />
 
           <UAlert
             v-else
