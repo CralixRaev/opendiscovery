@@ -1,0 +1,41 @@
+<template>
+  <svg
+    width="32"
+    height="32"
+    viewBox="0 0 32 32"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M16 3.5 26.825 9.75v12.5L16 28.5 5.175 22.25V9.75L16 3.5Z"
+      stroke="var(--ui-primary)"
+      stroke-width="2"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M10 13.25 16 9.75l6 3.5M10 18.75l6 3.5 6-3.5M16 9.75v12.5"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <circle
+      cx="10"
+      cy="13.25"
+      r="2.5"
+      fill="var(--ui-primary)"
+    />
+    <circle
+      cx="22"
+      cy="13.25"
+      r="2.5"
+      fill="var(--ui-primary)"
+    />
+    <circle
+      cx="16"
+      cy="22.25"
+      r="2.5"
+      fill="var(--ui-primary)"
+    />
+  </svg>
+</template>

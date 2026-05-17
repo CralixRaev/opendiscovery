@@ -1,0 +1,25 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "core",
+    "fastapi[standard]>=0.124.0",
+    "pyjwt>=2.12.1",
+    "uvicorn[standard]>=0.38.0",
+]
+
+[project.scripts]
+backend = "backend:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/backend"]
+
+[tool.uv.sources]
+core = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

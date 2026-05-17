@@ -15,7 +15,7 @@ async def _create_tenant(name: str):
     )
 
     async with in_transaction() as connection:
-        tenant = create_tenant(connection, name)
+        tenant = await create_tenant(connection, name)
     print(f"Successfully created tenant {repr(tenant)}")
 
 @app.command()
