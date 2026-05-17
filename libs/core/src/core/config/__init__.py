@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings
 
 class Config(BaseSettings):
     postgres_url: PostgresDsn = 'postgres://postgres:pass@localhost:5432/postgres'
+    postgres_read_url: PostgresDsn | None = None
     database_use_raw_queries: bool = False
     backend_cors_origins: str = 'http://localhost:3000,http://127.0.0.1:3000'
     backend_token_secret: str = 'dev-opendiscovery-token-secret-change-me'

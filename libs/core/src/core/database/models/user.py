@@ -1,7 +1,7 @@
 from tortoise import Model, fields, BaseDBAsyncClient
 
 from core import utils
-from core.database import mark_from_db, use_raw_queries
+from core.database import get_read_connection, mark_from_db, use_raw_queries, using_read_connection
 from core.database.models import Tenant
 
 
@@ -32,7 +32,7 @@ async def create_user(connection: BaseDBAsyncClient, username: str, password: st
 
 async def find_user_for_login(username: str, tenant_name: str) -> User | None:
     if use_raw_queries():
-        connection = User._meta.db
+        connection = get_read_connection()
         rows = await connection.execute_query_dict(
             (
                 'SELECT '
@@ -49,15 +49,15 @@ async def find_user_for_login(username: str, tenant_name: str) -> User | None:
             return None
         return _user_from_joined_row(rows[0])
 
-    return await User.get_or_none(
+    return await using_read_connection(User.filter(
         username=username,
         tenant__name=tenant_name,
-    ).select_related("tenant")
+    )).select_related("tenant").get_or_none()
 
 
 async def find_user_by_id_and_tenant(user_id: int, tenant_id: int) -> User | None:
     if use_raw_queries():
-        connection = User._meta.db
+        connection = get_read_connection()
         rows = await connection.execute_query_dict(
             (
                 'SELECT '
@@ -74,10 +74,10 @@ async def find_user_by_id_and_tenant(user_id: int, tenant_id: int) -> User | Non
             return None
         return _user_from_joined_row(rows[0])
 
-    return await User.get_or_none(
+    return await using_read_connection(User.filter(
         id=user_id,
         tenant_id=tenant_id,
-    ).select_related("tenant")
+    )).select_related("tenant").get_or_none()
 
 
 def _user_from_joined_row(row: dict) -> User:

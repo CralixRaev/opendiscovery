@@ -3,7 +3,7 @@ from typing import Literal
 from tortoise import Model, fields
 from tortoise.expressions import Q
 
-from core.database import mark_from_db, use_raw_queries
+from core.database import get_read_connection, mark_from_db, use_raw_queries, using_read_connection
 from core.database.fields import InetField
 
 
@@ -182,7 +182,7 @@ async def list_hosts_for_tenant(
 ) -> list[Host]:
     search = search.strip()
     if use_raw_queries():
-        connection = Host._meta.db
+        connection = get_read_connection()
         order_column = _HOST_SORT_COLUMNS[sort_by]
         order_direction = "ASC" if sort_direction == "asc" else "DESC"
         pagination_sql = ""
@@ -215,7 +215,7 @@ async def list_hosts_for_tenant(
         )
         return [_host_from_row(row) for row in rows]
 
-    query = Host.filter(tenant_id=tenant_id)
+    query = using_read_connection(Host.filter(tenant_id=tenant_id))
     if search:
         query = query.filter(_host_search_condition(search)).distinct()
 
@@ -231,7 +231,7 @@ async def list_hosts_for_tenant(
 async def count_hosts_for_tenant(tenant_id: int, *, search: str = "") -> int:
     search = search.strip()
     if use_raw_queries():
-        connection = Host._meta.db
+        connection = get_read_connection()
         rows = await connection.execute_query_dict(
             (
                 'SELECT COUNT(*) AS "count" '
@@ -255,7 +255,7 @@ async def count_hosts_for_tenant(tenant_id: int, *, search: str = "") -> int:
         )
         return rows[0]["count"]
 
-    query = Host.filter(tenant_id=tenant_id)
+    query = using_read_connection(Host.filter(tenant_id=tenant_id))
     if search:
         query = query.filter(_host_search_condition(search)).distinct()
     return await query.count()
@@ -269,7 +269,7 @@ async def list_open_ports_by_host_for_tenant(
         return {}
 
     if use_raw_queries():
-        connection = HostPort._meta.db
+        connection = get_read_connection()
         host_filter_sql = ""
         params: list[object] = [tenant_id]
         if host_ids is not None:
@@ -290,7 +290,7 @@ async def list_open_ports_by_host_for_tenant(
             params,
         )
     else:
-        query = HostPort.filter(tenant_id=tenant_id)
+        query = using_read_connection(HostPort.filter(tenant_id=tenant_id))
         if host_ids is not None:
             query = query.filter(host_id__in=host_ids)
         rows = await query.select_related("port").order_by(

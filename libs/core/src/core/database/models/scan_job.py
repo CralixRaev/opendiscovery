@@ -3,7 +3,7 @@ from enum import StrEnum
 
 from tortoise import Model, fields
 
-from core.database import mark_from_db, use_raw_queries
+from core.database import get_read_connection, mark_from_db, use_raw_queries, using_read_connection
 from core.database.models.scanner import Scanner
 
 
@@ -72,7 +72,9 @@ async def list_scan_jobs_for_tenant(tenant_id: int) -> list[ScanJob]:
         )
         return [_scan_job_from_row(row) for row in rows]
 
-    return await ScanJob.filter(tenant_id=tenant_id).order_by("-created_at", "-id")
+    return await using_read_connection(
+        ScanJob.filter(tenant_id=tenant_id).order_by("-created_at", "-id")
+    )
 
 
 async def find_scan_job_for_scanner(
