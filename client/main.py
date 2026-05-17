@@ -1,19 +1,19 @@
 import asyncio
-import os
 
 import nats
 
+from config import ClientConfig
+
 
 async def run() -> None:
-    nats_url = os.environ.get("NATS_URL", "nats://localhost:4222")
+    config = ClientConfig()
     nc = await nats.connect(
-        nats_url,
-        user=os.environ.get("NATS_USER", "demo"),
-        password=os.environ.get("NATS_PASSWORD", "secret"),
-        name="opendiscovery-demo-client",
+        config.nats_url,
+        token=config.scanner_token,
+        name=config.client_name,
     )
 
-    subject = os.environ.get("NATS_DEMO_SUBJECT", "demo.auth_callout")
+    subject = config.subject
     sub = await nc.subscribe(subject)
     await nc.flush()
 

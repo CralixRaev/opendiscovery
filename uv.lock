@@ -135,6 +135,7 @@ dependencies = [
     { name = "core" },
     { name = "nats-callout" },
     { name = "nats-py" },
+    { name = "pyjwt" },
 ]
 
 [package.metadata]
@@ -142,6 +143,7 @@ requires-dist = [
     { name = "core", editable = "libs/core" },
     { name = "nats-callout" },
     { name = "nats-py" },
+    { name = "pyjwt", specifier = ">=2.12.1" },
 ]
 
 [[package]]
@@ -234,10 +236,14 @@ version = "0.1.0"
 source = { virtual = "client" }
 dependencies = [
     { name = "nats-py" },
+    { name = "pydantic-settings" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "nats-py" }]
+requires-dist = [
+    { name = "nats-py" },
+    { name = "pydantic-settings", specifier = ">=2.12.0" },
+]
 
 [[package]]
 name = "colorama"

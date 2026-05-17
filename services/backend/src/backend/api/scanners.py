@@ -13,7 +13,7 @@ from core.database.models.scanner import create_scanner, list_scanners_for_tenan
 
 
 settings = Config()
-SCANNER_TOKEN_TTL_SECONDS = settings.backend_token_ttl_seconds
+SCANNER_TOKEN_TTL_SECONDS = settings.scanner_token_ttl_seconds
 router = APIRouter(prefix="/scanners", tags=["scanners"])
 
 

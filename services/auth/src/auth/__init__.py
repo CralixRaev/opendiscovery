@@ -1,16 +1,21 @@
 import asyncio
 import json
-import os
 import signal
 from typing import Any
 
+import jwt
 import nats
+from core.config import Config
+from jwt import InvalidTokenError
 from nats_callout import AdaptixEncoder, AuthError, BaseAuthCalloutService
 from nats_callout.claims import AuthRequestData, UserData
 from nats_callout.claims.user import PubSubPermissions
 
 
 AUTH_CALLOUT_SUBJECT = "$SYS.REQ.USER.AUTH"
+JWT_ALGORITHM = "HS256"
+TENANT_SUBJECT_PREFIX = "opendiscovery.tenants"
+
 
 # hack :)
 class JsonAdaptixEncoder(AdaptixEncoder):
@@ -24,49 +29,88 @@ class JsonAdaptixEncoder(AdaptixEncoder):
 
 
 class AuthCalloutService(BaseAuthCalloutService):
-    def __init__(self, nkey_seed: str, account: str = "$G") -> None:
+    def __init__(
+        self,
+        nkey_seed: str,
+        token_secret: str,
+        token_issuer: str,
+        account: str = "$G",
+    ) -> None:
         self.encoder = JsonAdaptixEncoder()
         self.nkey_seed = nkey_seed
+        self.token_secret = token_secret
+        self.token_issuer = token_issuer
         self.account = account
         self.encoder.kp = self._key_pair
+
+    def _decode_scanner_token(self, token: str | None) -> dict[str, Any]:
+        if not token:
+            raise AuthError("scanner token is required")
+
+        try:
+            payload = jwt.decode(
+                token,
+                self.token_secret,
+                algorithms=[JWT_ALGORITHM],
+                issuer=self.token_issuer,
+            )
+        except InvalidTokenError as exc:
+            raise AuthError("invalid scanner token") from exc
+
+        scanner_id = payload.get("scanner_id")
+        tenant_id = payload.get("tenant_id")
+        subject = payload.get("sub")
+        if (
+            payload.get("token_use") != "scanner"
+            or not isinstance(scanner_id, int)
+            or not isinstance(tenant_id, int)
+            or subject != str(scanner_id)
+        ):
+            raise AuthError("invalid scanner token claims")
+
+        return payload
 
     async def _handle_auth_request_data(
         self,
         auth_request_data: AuthRequestData,
     ) -> UserData:
         connect_opts = auth_request_data.connect_opts
+        claims = self._decode_scanner_token(connect_opts.auth_token)
 
-        print(connect_opts)
-
-        if connect_opts.user != "demo" or connect_opts.pass_ != "secret":
-            name = connect_opts.user or "<missing>"
-            raise AuthError(f"invalid credentials for {name}")
+        scanner_id = claims["scanner_id"]
+        tenant_id = claims["tenant_id"]
 
         return UserData(
             version=auth_request_data.version,
-            tags=auth_request_data.tags,
-            pub=PubSubPermissions(allow=[">"]),
-            sub=PubSubPermissions(allow=[">"]),
+            tags=[
+                *auth_request_data.tags,
+                "scanner",
+                f"scanner:{scanner_id}",
+                f"tenant:{tenant_id}",
+            ],
+            pub=PubSubPermissions(allow=[f"{TENANT_SUBJECT_PREFIX}.{tenant_id}.>"]),
+            sub=PubSubPermissions(allow=[f"{TENANT_SUBJECT_PREFIX}.{tenant_id}.>"]),
         )
 
 
 async def run() -> None:
-    issuer_seed = os.environ.get("AUTH_ISSUER_SEED")
-    if not issuer_seed:
+    settings = Config()
+    if not settings.auth_issuer_seed:
         raise RuntimeError(
             "AUTH_ISSUER_SEED is required and must match authorization.auth_callout.issuer"
         )
 
-    nats_url = os.environ.get("NATS_URL", "nats://localhost:4222")
     service = AuthCalloutService(
-        nkey_seed=issuer_seed,
-        account=os.environ.get("NATS_ACCOUNT", "$G"),
+        nkey_seed=settings.auth_issuer_seed,
+        token_secret=settings.backend_token_secret,
+        token_issuer=settings.backend_token_issuer,
+        account=settings.nats_account,
     )
 
     nc = await nats.connect(
-        nats_url,
-        user=os.environ.get("NATS_AUTH_USER", "auth"),
-        password=os.environ.get("NATS_AUTH_PASSWORD", "auth"),
+        settings.nats_url,
+        user=settings.nats_auth_user,
+        password=settings.nats_auth_password,
         name="opendiscovery-auth-callout",
     )
 
