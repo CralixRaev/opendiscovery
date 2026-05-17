@@ -11,8 +11,8 @@ dependencies = [
     "uvicorn[standard]>=0.38.0",
 ]
 
-[project.scripts]
-backend = "backend:main"
+[tool.fastapi]
+entrypoint = "backend:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/backend"]
