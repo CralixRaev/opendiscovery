@@ -5,7 +5,10 @@ from typing import Any
 
 import nats
 from core.config import Config
-from core.database.models.discovery import create_scan_job_host_discoveries_for_scanner
+from core.database.models.discovery import (
+    create_scan_job_host_discoveries_for_scanner,
+    create_scan_job_port_discoveries_for_scanner,
+)
 from tortoise import Tortoise
 
 from result_collector.payloads import (
@@ -77,6 +80,15 @@ async def process_scan_job_result_message(subject: str, data: bytes) -> None:
         tenant_id=result.tenant_id,
         scanner_id=result.scanner_id,
         ips=[host.ip for host in result.alive_hosts],
+    )
+    await create_scan_job_port_discoveries_for_scanner(
+        scan_job_id=result.id,
+        tenant_id=result.tenant_id,
+        scanner_id=result.scanner_id,
+        open_ports_by_ip={
+            host.ip: [(port.number, port.service_name) for port in host.open_ports or []]
+            for host in result.alive_hosts
+        },
     )
 
 

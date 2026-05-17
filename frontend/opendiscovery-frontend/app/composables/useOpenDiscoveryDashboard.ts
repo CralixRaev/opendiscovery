@@ -56,6 +56,10 @@ export type DiscoveredHost = {
   created_at: string
   updated_at: string
   tenant_id: number
+  open_ports: Array<{
+    number: number
+    service_name: string
+  }>
 }
 
 export type ScanJobForm = {

@@ -8,9 +8,16 @@ class InvalidScanJobResultError(ValueError):
 
 
 @dataclass(frozen=True)
+class OpenPortResult:
+    number: int
+    service_name: str
+
+
+@dataclass(frozen=True)
 class AliveHostResult:
     ip: str
     hostname: str | None = None
+    open_ports: list[OpenPortResult] | None = None
 
 
 @dataclass(frozen=True)
@@ -65,4 +72,24 @@ def parse_alive_host(payload: Any) -> AliveHostResult:
     if hostname is not None:
         hostname = str(hostname)
 
-    return AliveHostResult(ip=ip, hostname=hostname)
+    open_ports_payload = payload.get("open_ports", [])
+    if not isinstance(open_ports_payload, list):
+        raise InvalidScanJobResultError("open_ports must be a list")
+
+    return AliveHostResult(
+        ip=ip,
+        hostname=hostname,
+        open_ports=[parse_open_port(port) for port in open_ports_payload],
+    )
+
+
+def parse_open_port(payload: Any) -> OpenPortResult:
+    if not isinstance(payload, dict):
+        raise InvalidScanJobResultError("open port must be an object")
+
+    number = int(payload["number"])
+    if number < 1 or number > 65535:
+        raise InvalidScanJobResultError("open port number must be between 1 and 65535")
+
+    service_name = str(payload.get("service_name") or "unknown")
+    return OpenPortResult(number=number, service_name=service_name)

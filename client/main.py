@@ -5,7 +5,7 @@ import nats
 from nats.errors import Error
 
 from config import ClientConfig
-from nmap_scan import NmapScanError, NmapScanResult, scan_alive_hosts
+from nmap_scan import NmapScanError, NmapScanResult, scan_target
 
 
 async def publish_status(nc, config: ClientConfig, scan_job: dict, status: str) -> None:
@@ -29,6 +29,13 @@ async def publish_result(nc, config: ClientConfig, scan_job: dict, result: NmapS
             {
                 "ip": host.ip,
                 "hostname": host.hostname,
+                "open_ports": [
+                    {
+                        "number": port.number,
+                        "service_name": port.service_name,
+                    }
+                    for port in host.open_ports or []
+                ],
             }
             for host in result.alive_hosts
         ],
@@ -54,7 +61,7 @@ async def process_scan_job(nc, config: ClientConfig, msg) -> None:
     print(f"scan job #{scan_job['id']} is running")
 
     try:
-        scan_result = await scan_alive_hosts(scan_job["ip_network"])
+        scan_result = await scan_target(scan_job["ip_network"])
     except (ValueError, NmapScanError) as exc:
         await publish_status(nc, config, scan_job, "failed")
         print(f"scan job #{scan_job['id']} failed: {exc}")
@@ -64,7 +71,8 @@ async def process_scan_job(nc, config: ClientConfig, msg) -> None:
     await publish_status(nc, config, scan_job, "finished")
     print(
         f"scan job #{scan_job['id']} is finished: "
-        f"{len(scan_result.alive_hosts)} alive host(s) found"
+        f"{len(scan_result.alive_hosts)} alive host(s) found, "
+        f"{sum(len(host.open_ports or []) for host in scan_result.alive_hosts)} open port(s) found"
     )
 
 

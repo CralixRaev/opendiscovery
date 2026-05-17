@@ -34,7 +34,7 @@ defineProps<{
       class="overflow-hidden rounded-lg border border-default"
     >
       <div class="overflow-x-auto">
-        <table class="w-full min-w-[680px] text-left text-sm">
+        <table class="w-full min-w-[820px] text-left text-sm">
           <thead class="border-b border-default bg-muted/40 text-xs uppercase text-muted">
             <tr>
               <th class="px-4 py-3 font-medium">
@@ -42,6 +42,9 @@ defineProps<{
               </th>
               <th class="px-4 py-3 font-medium">
                 ID
+              </th>
+              <th class="px-4 py-3 font-medium">
+                Открытые порты
               </th>
               <th class="px-4 py-3 font-medium">
                 Обнаружен
@@ -62,6 +65,23 @@ defineProps<{
               </td>
               <td class="px-4 py-3 text-muted">
                 {{ host.id }}
+              </td>
+              <td class="px-4 py-3 text-muted">
+                <div
+                  v-if="host.open_ports.length"
+                  class="flex flex-wrap gap-1.5"
+                >
+                  <UBadge
+                    v-for="port in host.open_ports"
+                    :key="`${host.id}-${port.number}-${port.service_name}`"
+                    color="neutral"
+                    variant="soft"
+                    size="sm"
+                  >
+                    {{ port.number }}/{{ port.service_name }}
+                  </UBadge>
+                </div>
+                <span v-else>нет</span>
               </td>
               <td class="px-4 py-3 text-muted">
                 {{ formatDate(host.created_at) }}
