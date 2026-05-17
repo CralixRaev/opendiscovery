@@ -122,6 +122,9 @@ export function useOpenDiscoveryDashboard() {
   const sessionLoading = ref(true)
   const scannersLoading = ref(false)
   const scannerCreating = ref(false)
+  const scannerUpdatingId = ref<number | null>(null)
+  const scannerTokenReissuingId = ref<number | null>(null)
+  const scannerDeletingId = ref<number | null>(null)
   const scanJobsLoading = ref(false)
   const scanJobCreating = ref(false)
   const hostsLoading = ref(false)
@@ -401,6 +404,123 @@ export function useOpenDiscoveryDashboard() {
     }
   }
 
+  async function updateScanner(scanner: Scanner, name: string) {
+    if (!auth.value) {
+      return
+    }
+
+    const normalizedName = name.trim()
+    if (!normalizedName || normalizedName === scanner.name) {
+      return
+    }
+
+    scannerUpdatingId.value = scanner.id
+
+    try {
+      const response = await $fetch<Scanner>(`${apiBaseUrl.value}/api/scanners/${scanner.id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: {
+          name: normalizedName
+        }
+      })
+
+      scanners.value = scanners.value.map(item => item.id === response.id ? response : item)
+      toast.add({
+        title: 'Сканер переименован',
+        description: response.name,
+        color: 'success',
+        icon: 'i-lucide-pencil'
+      })
+    } catch {
+      toast.add({
+        title: 'Не удалось переименовать сканер',
+        description: 'Проверьте имя и попробуйте еще раз',
+        color: 'error',
+        icon: 'i-lucide-circle-alert'
+      })
+    } finally {
+      scannerUpdatingId.value = null
+    }
+  }
+
+  async function reissueScannerToken(scanner: Scanner) {
+    if (!auth.value) {
+      return
+    }
+
+    scannerTokenReissuingId.value = scanner.id
+
+    try {
+      const response = await $fetch<ScannerCreateResponse>(`${apiBaseUrl.value}/api/scanners/${scanner.id}/token`, {
+        method: 'POST',
+        headers: authHeaders()
+      })
+
+      issuedScannerToken.value = response.scanner_token
+      issuedScannerName.value = response.scanner.name
+      toast.add({
+        title: 'JWT перевыпущен',
+        description: response.scanner.name,
+        color: 'success',
+        icon: 'i-lucide-key-round'
+      })
+    } catch {
+      toast.add({
+        title: 'Не удалось перевыпустить JWT',
+        color: 'error',
+        icon: 'i-lucide-circle-alert'
+      })
+    } finally {
+      scannerTokenReissuingId.value = null
+    }
+  }
+
+  async function deleteScanner(scanner: Scanner) {
+    if (!auth.value) {
+      return
+    }
+
+    const confirmed = window.confirm(`Удалить сканер "${scanner.name}" и связанные задания?`)
+    if (!confirmed) {
+      return
+    }
+
+    scannerDeletingId.value = scanner.id
+
+    try {
+      await $fetch(`${apiBaseUrl.value}/api/scanners/${scanner.id}`, {
+        method: 'DELETE',
+        headers: authHeaders()
+      })
+
+      scanners.value = scanners.value.filter(item => item.id !== scanner.id)
+      scanJobs.value = scanJobs.value.filter(scanJob => scanJob.scanner_id !== scanner.id)
+      if (scanJobForm.scanner_id === String(scanner.id)) {
+        scanJobForm.scanner_id = scanners.value[0] ? String(scanners.value[0].id) : ''
+      }
+      if (issuedScannerName.value === scanner.name) {
+        issuedScannerToken.value = null
+        issuedScannerName.value = null
+      }
+
+      toast.add({
+        title: 'Сканер удален',
+        description: scanner.name,
+        color: 'success',
+        icon: 'i-lucide-trash-2'
+      })
+    } catch {
+      toast.add({
+        title: 'Не удалось удалить сканер',
+        color: 'error',
+        icon: 'i-lucide-circle-alert'
+      })
+    } finally {
+      scannerDeletingId.value = null
+    }
+  }
+
   async function createScanJob() {
     if (!auth.value) {
       return
@@ -501,6 +621,7 @@ export function useOpenDiscoveryDashboard() {
     copyScannerToken,
     createScanner,
     createScanJob,
+    deleteScanner,
     formatDate,
     hosts,
     hostsLoading,
@@ -522,11 +643,16 @@ export function useOpenDiscoveryDashboard() {
     scanJobs,
     scanJobsLoading,
     scannerCreating,
+    scannerDeletingId,
     scannerForm,
     scannerName,
+    scannerTokenReissuingId,
+    scannerUpdatingId,
     scanners,
     scannersLoading,
     sessionLoading,
-    submitLogin
+    submitLogin,
+    reissueScannerToken,
+    updateScanner
   }
 }

@@ -51,6 +51,66 @@ async def list_scanners_for_tenant(tenant_id: int) -> list[Scanner]:
     return await Scanner.filter(tenant_id=tenant_id).order_by("-created_at", "-id")
 
 
+async def find_scanner_for_tenant(scanner_id: int, tenant_id: int) -> Scanner | None:
+    if use_raw_queries():
+        connection = Scanner._meta.db
+        rows = await connection.execute_query_dict(
+            (
+                'SELECT "id", "name", "created_at", "tenant_id" '
+                'FROM "scanner" '
+                'WHERE "id" = $1 AND "tenant_id" = $2'
+            ),
+            [scanner_id, tenant_id],
+        )
+        if not rows:
+            return None
+        return _scanner_from_row(rows[0])
+
+    return await Scanner.get_or_none(id=scanner_id, tenant_id=tenant_id)
+
+
+async def update_scanner_name(scanner_id: int, tenant_id: int, name: str) -> Scanner | None:
+    if use_raw_queries():
+        connection = Scanner._meta.db
+        rows = await connection.execute_query_dict(
+            (
+                'UPDATE "scanner" '
+                'SET "name" = $1 '
+                'WHERE "id" = $2 AND "tenant_id" = $3 '
+                'RETURNING "id", "name", "created_at", "tenant_id"'
+            ),
+            [name, scanner_id, tenant_id],
+        )
+        if not rows:
+            return None
+        return _scanner_from_row(rows[0])
+
+    scanner = await Scanner.get_or_none(id=scanner_id, tenant_id=tenant_id)
+    if scanner is None:
+        return None
+
+    scanner.name = name
+    await scanner.save(update_fields=["name"])
+    return scanner
+
+
+async def delete_scanner(scanner_id: int, tenant_id: int) -> bool:
+    if use_raw_queries():
+        connection = Scanner._meta.db
+        rows = await connection.execute_query_dict(
+            (
+                'DELETE FROM "scanner" '
+                'WHERE "id" = $1 AND "tenant_id" = $2 '
+                'RETURNING "id"'
+            ),
+            [scanner_id, tenant_id],
+        )
+        return bool(rows)
+
+    deleted_count = await Scanner.filter(id=scanner_id, tenant_id=tenant_id).delete()
+    return deleted_count > 0
+
+
 def _scanner_from_row(row: dict, tenant: Tenant | None = None) -> Scanner:
     scanner = mark_from_db(
         Scanner(

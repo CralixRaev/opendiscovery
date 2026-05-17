@@ -1,19 +1,46 @@
 <script setup lang="ts">
 import type { Scanner, ScannerForm } from '~/composables/useOpenDiscoveryDashboard'
 
-defineProps<{
+const props = defineProps<{
   copyScannerToken: () => Promise<void>
   createScanner: () => Promise<void>
+  deleteScanner: (scanner: Scanner) => Promise<void>
   formatDate: (value: string) => string
   issuedScannerName: string | null
   issuedScannerToken: string | null
   loadScanners: () => Promise<void>
   scannerCreating: boolean
+  scannerDeletingId: number | null
+  scannerTokenReissuingId: number | null
+  scannerUpdatingId: number | null
   scanners: Scanner[]
   scannersLoading: boolean
+  reissueScannerToken: (scanner: Scanner) => Promise<void>
+  updateScanner: (scanner: Scanner, name: string) => Promise<void>
 }>()
 
 const scannerForm = defineModel<ScannerForm>('scannerForm', { required: true })
+const editingScannerId = ref<number | null>(null)
+const editingScannerName = ref('')
+
+function startScannerRename(scanner: Scanner) {
+  editingScannerId.value = scanner.id
+  editingScannerName.value = scanner.name
+}
+
+function cancelScannerRename() {
+  editingScannerId.value = null
+  editingScannerName.value = ''
+}
+
+async function finishScannerRename(scanner: Scanner) {
+  if (!editingScannerName.value.trim()) {
+    return
+  }
+
+  await props.updateScanner(scanner, editingScannerName.value)
+  cancelScannerRename()
+}
 </script>
 
 <template>
@@ -123,23 +150,85 @@ const scannerForm = defineModel<ScannerForm>('scannerForm', { required: true })
         <div
           v-for="scanner in scanners"
           :key="scanner.id"
-          class="grid gap-3 border-b border-default px-4 py-4 last:border-b-0 sm:grid-cols-[1fr_auto] sm:items-center"
+          class="grid gap-3 border-b border-default px-4 py-4 last:border-b-0 lg:grid-cols-[1fr_auto] lg:items-center"
         >
-          <div class="min-w-0">
-            <p class="truncate font-medium text-highlighted">
-              {{ scanner.name }}
-            </p>
-            <p class="mt-1 text-sm text-muted">
-              ID {{ scanner.id }} · {{ formatDate(scanner.created_at) }}
-            </p>
-          </div>
-          <UBadge
-            color="success"
-            variant="subtle"
-            icon="i-lucide-circle-check"
+          <form
+            v-if="editingScannerId === scanner.id"
+            class="grid gap-3 lg:col-span-2 sm:grid-cols-[minmax(0,1fr)_auto]"
+            @submit.prevent="finishScannerRename(scanner)"
           >
-            создан
-          </UBadge>
+            <div class="min-w-0">
+              <UInput
+                v-model="editingScannerName"
+                class="w-full"
+                icon="i-lucide-radio-receiver"
+                required
+                maxlength="128"
+                autofocus
+              />
+              <p class="mt-1 text-sm text-muted">
+                ID {{ scanner.id }} · {{ formatDate(scanner.created_at) }}
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-2 sm:justify-end">
+              <UButton
+                type="submit"
+                icon="i-lucide-check"
+                :loading="scannerUpdatingId === scanner.id"
+              >
+                Сохранить
+              </UButton>
+              <UButton
+                type="button"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-x"
+                :disabled="scannerUpdatingId === scanner.id"
+                @click="cancelScannerRename"
+              >
+                Отмена
+              </UButton>
+            </div>
+          </form>
+
+          <template v-else>
+            <div class="min-w-0">
+              <p class="truncate font-medium text-highlighted">
+                {{ scanner.name }}
+              </p>
+              <p class="mt-1 text-sm text-muted">
+                ID {{ scanner.id }} · {{ formatDate(scanner.created_at) }}
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-2 lg:justify-end">
+              <UButton
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-pencil"
+                @click="startScannerRename(scanner)"
+              >
+                Переименовать
+              </UButton>
+              <UButton
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-key-round"
+                :loading="scannerTokenReissuingId === scanner.id"
+                @click="reissueScannerToken(scanner)"
+              >
+                Перевыпустить JWT
+              </UButton>
+              <UButton
+                color="error"
+                variant="subtle"
+                icon="i-lucide-trash-2"
+                :loading="scannerDeletingId === scanner.id"
+                @click="deleteScanner(scanner)"
+              >
+                Удалить
+              </UButton>
+            </div>
+          </template>
         </div>
       </div>
 

@@ -4,6 +4,7 @@ const {
   copyScannerToken,
   createScanner,
   createScanJob,
+  deleteScanner,
   formatDate,
   hosts,
   hostsLoading,
@@ -25,12 +26,17 @@ const {
   scanJobs,
   scanJobsLoading,
   scannerCreating,
+  scannerDeletingId,
   scannerForm,
   scannerName,
+  scannerTokenReissuingId,
+  scannerUpdatingId,
   scanners,
   scannersLoading,
   sessionLoading,
-  submitLogin
+  submitLogin,
+  reissueScannerToken,
+  updateScanner
 } = useOpenDiscoveryDashboard()
 </script>
 
@@ -68,6 +74,7 @@ const {
       :copy-scanner-token="copyScannerToken"
       :create-scanner="createScanner"
       :create-scan-job="createScanJob"
+      :delete-scanner="deleteScanner"
       :format-date="formatDate"
       :hosts="hosts"
       :hosts-loading="hostsLoading"
@@ -83,9 +90,14 @@ const {
       :scan-jobs="scanJobs"
       :scan-jobs-loading="scanJobsLoading"
       :scanner-creating="scannerCreating"
+      :scanner-deleting-id="scannerDeletingId"
       :scanner-name="scannerName"
+      :scanner-token-reissuing-id="scannerTokenReissuingId"
+      :scanner-updating-id="scannerUpdatingId"
       :scanners="scanners"
       :scanners-loading="scannersLoading"
+      :reissue-scanner-token="reissueScannerToken"
+      :update-scanner="updateScanner"
     />
   </main>
 </template>

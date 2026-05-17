@@ -14,6 +14,7 @@ defineProps<{
   copyScannerToken: () => Promise<void>
   createScanner: () => Promise<void>
   createScanJob: () => Promise<void>
+  deleteScanner: (scanner: Scanner) => Promise<void>
   formatDate: (value: string) => string
   hosts: DiscoveredHost[]
   hostsLoading: boolean
@@ -29,9 +30,14 @@ defineProps<{
   scanJobs: ScanJob[]
   scanJobsLoading: boolean
   scannerCreating: boolean
+  scannerDeletingId: number | null
   scannerName: (scannerId: number) => string
+  scannerTokenReissuingId: number | null
+  scannerUpdatingId: number | null
   scanners: Scanner[]
   scannersLoading: boolean
+  reissueScannerToken: (scanner: Scanner) => Promise<void>
+  updateScanner: (scanner: Scanner, name: string) => Promise<void>
 }>()
 
 const scannerForm = defineModel<ScannerForm>('scannerForm', { required: true })
@@ -88,13 +94,19 @@ const dashboardTabs = [
         v-model:scanner-form="scannerForm"
         :copy-scanner-token="copyScannerToken"
         :create-scanner="createScanner"
+        :delete-scanner="deleteScanner"
         :format-date="formatDate"
         :issued-scanner-name="issuedScannerName"
         :issued-scanner-token="issuedScannerToken"
         :load-scanners="loadScanners"
         :scanner-creating="scannerCreating"
+        :scanner-deleting-id="scannerDeletingId"
+        :scanner-token-reissuing-id="scannerTokenReissuingId"
+        :scanner-updating-id="scannerUpdatingId"
         :scanners="scanners"
         :scanners-loading="scannersLoading"
+        :reissue-scanner-token="reissueScannerToken"
+        :update-scanner="updateScanner"
       />
     </template>
 
