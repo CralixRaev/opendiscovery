@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type {
   BadgeColor,
+  DiscoveredHost,
   ScanJob,
   ScanJobForm,
   ScanJobStatus,
@@ -13,10 +14,13 @@ defineProps<{
   createScanner: () => Promise<void>
   createScanJob: () => Promise<void>
   formatDate: (value: string) => string
+  hosts: DiscoveredHost[]
+  hostsLoading: boolean
   issuedScannerName: string | null
   issuedScannerToken: string | null
   loadScanners: () => Promise<void>
   loadScanJobs: () => Promise<void>
+  loadHosts: () => Promise<void>
   scanJobCreating: boolean
   scanJobStatusColor: (status: ScanJobStatus) => BadgeColor
   scanJobStatusIcon: (status: ScanJobStatus) => string
@@ -50,6 +54,12 @@ const dashboardTabs = [
     icon: 'i-lucide-clipboard-list',
     value: 'scan-jobs',
     slot: 'scan-jobs'
+  },
+  {
+    label: 'Хосты',
+    icon: 'i-lucide-server',
+    value: 'hosts',
+    slot: 'hosts'
   }
 ]
 </script>
@@ -94,6 +104,15 @@ const dashboardTabs = [
         :scan-jobs-loading="scanJobsLoading"
         :scanner-name="scannerName"
         :scanners="scanners"
+      />
+    </template>
+
+    <template #hosts>
+      <DashboardHostTable
+        :format-date="formatDate"
+        :hosts="hosts"
+        :hosts-loading="hostsLoading"
+        :load-hosts="loadHosts"
       />
     </template>
   </UTabs>

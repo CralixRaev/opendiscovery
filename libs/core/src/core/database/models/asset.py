@@ -73,6 +73,23 @@ async def get_or_create_host(tenant_id: int, ip: str) -> Host:
     return host
 
 
+async def list_hosts_for_tenant(tenant_id: int) -> list[Host]:
+    if use_raw_queries():
+        connection = Host._meta.db
+        rows = await connection.execute_query_dict(
+            (
+                'SELECT "id", "ip", "created_at", "updated_at", "tenant_id" '
+                'FROM "host" '
+                'WHERE "tenant_id" = $1 '
+                'ORDER BY "updated_at" DESC, "id" DESC'
+            ),
+            [tenant_id],
+        )
+        return [_host_from_row(row) for row in rows]
+
+    return await Host.filter(tenant_id=tenant_id).order_by("-updated_at", "-id")
+
+
 def _host_from_row(row: dict) -> Host:
     return mark_from_db(
         Host(

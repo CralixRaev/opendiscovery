@@ -5,11 +5,14 @@ const {
   createScanner,
   createScanJob,
   formatDate,
+  hosts,
+  hostsLoading,
   isAuthenticated,
   issuedScannerName,
   issuedScannerToken,
   loadScanners,
   loadScanJobs,
+  loadHosts,
   loginForm,
   loginLoading,
   logout,
@@ -63,10 +66,13 @@ const {
       :create-scanner="createScanner"
       :create-scan-job="createScanJob"
       :format-date="formatDate"
+      :hosts="hosts"
+      :hosts-loading="hostsLoading"
       :issued-scanner-name="issuedScannerName"
       :issued-scanner-token="issuedScannerToken"
       :load-scanners="loadScanners"
       :load-scan-jobs="loadScanJobs"
+      :load-hosts="loadHosts"
       :scan-job-creating="scanJobCreating"
       :scan-job-status-color="scanJobStatusColor"
       :scan-job-status-icon="scanJobStatusIcon"

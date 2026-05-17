@@ -50,6 +50,14 @@ export type ScanJob = {
   scanner_id: number
 }
 
+export type DiscoveredHost = {
+  id: number
+  ip: string
+  created_at: string
+  updated_at: string
+  tenant_id: number
+}
+
 export type ScanJobForm = {
   ip_network: string
   scanner_id: string
@@ -82,9 +90,11 @@ export function useOpenDiscoveryDashboard() {
   const scannerCreating = ref(false)
   const scanJobsLoading = ref(false)
   const scanJobCreating = ref(false)
+  const hostsLoading = ref(false)
   const auth = ref<LoginResponse | null>(null)
   const scanners = ref<Scanner[]>([])
   const scanJobs = ref<ScanJob[]>([])
+  const hosts = ref<DiscoveredHost[]>([])
   const issuedScannerToken = ref<string | null>(null)
   const issuedScannerName = ref<string | null>(null)
 
@@ -92,6 +102,7 @@ export function useOpenDiscoveryDashboard() {
   const isAuthenticated = computed(() => auth.value !== null)
   let scanJobsPollingTimer: number | null = null
   let scanJobsRequestInFlight = false
+  let hostsRequestInFlight = false
 
   function authHeaders(): Record<string, string> {
     if (!auth.value) {
@@ -114,6 +125,7 @@ export function useOpenDiscoveryDashboard() {
     auth.value = null
     scanners.value = []
     scanJobs.value = []
+    hosts.value = []
     issuedScannerToken.value = null
     issuedScannerName.value = null
     localStorage.removeItem('opendiscovery.accessToken')
@@ -136,7 +148,7 @@ export function useOpenDiscoveryDashboard() {
         headers: authHeaders()
       })
       auth.value = { ...parsed, user }
-      await Promise.all([loadScanners(), loadScanJobs()])
+      await Promise.all([loadScanners(), loadScanJobs(), loadHosts()])
       startScanJobsPolling()
     } catch {
       clearSession()
@@ -156,7 +168,7 @@ export function useOpenDiscoveryDashboard() {
 
       persistSession(response)
       loginForm.password = ''
-      await Promise.all([loadScanners(), loadScanJobs()])
+      await Promise.all([loadScanners(), loadScanJobs(), loadHosts()])
       startScanJobsPolling()
 
       toast.add({
@@ -236,6 +248,41 @@ export function useOpenDiscoveryDashboard() {
     }
   }
 
+  async function loadHosts(options: { silent?: boolean } = {}) {
+    if (!auth.value) {
+      return
+    }
+
+    if (hostsRequestInFlight) {
+      return
+    }
+
+    hostsRequestInFlight = true
+
+    if (!options.silent) {
+      hostsLoading.value = true
+    }
+
+    try {
+      hosts.value = await $fetch<DiscoveredHost[]>(`${apiBaseUrl.value}/api/hosts`, {
+        headers: authHeaders()
+      })
+    } catch {
+      if (!options.silent) {
+        toast.add({
+          title: 'Не удалось загрузить хосты',
+          color: 'error',
+          icon: 'i-lucide-circle-alert'
+        })
+      }
+    } finally {
+      hostsRequestInFlight = false
+      if (!options.silent) {
+        hostsLoading.value = false
+      }
+    }
+  }
+
   function startScanJobsPolling() {
     if (scanJobsPollingTimer !== null) {
       return
@@ -243,6 +290,7 @@ export function useOpenDiscoveryDashboard() {
 
     scanJobsPollingTimer = window.setInterval(() => {
       void loadScanJobs({ silent: true })
+      void loadHosts({ silent: true })
     }, 5000)
   }
 
@@ -398,11 +446,14 @@ export function useOpenDiscoveryDashboard() {
     createScanner,
     createScanJob,
     formatDate,
+    hosts,
+    hostsLoading,
     isAuthenticated,
     issuedScannerName,
     issuedScannerToken,
     loadScanners,
     loadScanJobs,
+    loadHosts,
     loginForm,
     loginLoading,
     logout,
