@@ -1,8 +1,10 @@
 from pydantic import PostgresDsn
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Config(BaseSettings):
+    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
+
     postgres_url: PostgresDsn = 'postgres://postgres:pass@localhost:5432/postgres'
     postgres_read_url: PostgresDsn | None = None
     database_use_raw_queries: bool = False
