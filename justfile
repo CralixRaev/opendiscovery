@@ -3,14 +3,18 @@ generate-keys:
     nsc generate nkey --account
     nsc generate nkey --curve
 
-# creates a new Aerich migration from current Tortoise models
+# creates a new Tortoise ORM migration from current models
 migrate-new name:
-    uv run aerich migrate --name "{{name}}"
+    uv run python -m tortoise makemigrations --name "{{name}}"
 
-# applies pending Aerich migrations
+# applies pending Tortoise ORM migrations
 migrate:
-    uv run aerich upgrade
+    uv run python -m tortoise migrate
 
-# shows Aerich migration history
+# shows applied Tortoise ORM migrations
 migrate-history:
-    uv run aerich history
+    uv run python -m tortoise history
+
+# shows Tortoise ORM migration heads on disk
+migrate-heads:
+    uv run python -m tortoise heads

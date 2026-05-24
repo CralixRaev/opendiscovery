@@ -11,11 +11,8 @@ pythonpath = [
     "client",
 ]
 
-[tool.aerich]
+[tool.tortoise]
 tortoise_orm = "core.database.migrations.TORTOISE_ORM"
-location = "./migrations"
-src_folder = "./."
-app = "models"
 
 [tool.uv.sources.core]
 workspace = true
@@ -36,7 +33,6 @@ members = [
 
 [dependency-groups]
 dev = [
-    "aerich>=0.8.1",
     "pytest>=8.4.2",
     "ruff>=0.14.6",
 ]
