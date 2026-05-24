@@ -1,0 +1,26 @@
+FROM python:3.14-slim
+
+ARG PACKAGE
+ARG INSTALL_NMAP=false
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    PATH="/app/.venv/bin:$PATH"
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && if [ "$INSTALL_NMAP" = "true" ]; then apt-get install -y --no-install-recommends nmap; fi \
+    && pip install --no-cache-dir uv \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml uv.lock .python-version ./
+COPY libs ./libs
+COPY services ./services
+COPY client ./client
+COPY cli ./cli
+
+RUN uv sync --frozen --no-dev --package "$PACKAGE"

@@ -1,0 +1,7 @@
+.DS_Store
+.github
+.nuxt
+.output
+node_modules
+npm-debug.log*
+pnpm-debug.log*

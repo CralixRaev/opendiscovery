@@ -12,6 +12,11 @@ services:
       - ./configs/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   nats:
     image: nats:2.12.6
@@ -23,6 +28,97 @@ services:
       - "4222:4222"
       - "6222:6222"
       - "8222:8222"
+
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+      args:
+        PACKAGE: auth
+    restart: unless-stopped
+    command: ["auth"]
+    environment:
+      NATS_URL: nats://nats:4222
+      NATS_AUTH_USER: auth
+      NATS_AUTH_PASSWORD: auth
+      NATS_ACCOUNT: "$$G"
+      AUTH_ISSUER_SEED: ${AUTH_ISSUER_SEED:-SAAILGGREJMYWCQRIIGE42YLEX6PAC42MJK7XUNV4HEY6H5T2LS6SIGJYQ}
+      BACKEND_TOKEN_SECRET: ${BACKEND_TOKEN_SECRET:-dev-opendiscovery-token-secret-change-me}
+      BACKEND_TOKEN_ISSUER: ${BACKEND_TOKEN_ISSUER:-opendiscovery-backend}
+    depends_on:
+      - nats
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+      args:
+        PACKAGE: backend
+    restart: unless-stopped
+    environment:
+      POSTGRES_URL: postgres://postgres:pass@postgres:5432/postgres
+      NATS_URL: nats://nats:4222
+      NATS_AUTH_USER: auth
+      NATS_AUTH_PASSWORD: auth
+      BACKEND_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      BACKEND_TOKEN_SECRET: ${BACKEND_TOKEN_SECRET:-dev-opendiscovery-token-secret-change-me}
+      BACKEND_TOKEN_ISSUER: ${BACKEND_TOKEN_ISSUER:-opendiscovery-backend}
+    command: ["uvicorn", "backend:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  result-collector:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+      args:
+        PACKAGE: result-collector
+    restart: unless-stopped
+    environment:
+      POSTGRES_URL: postgres://postgres:pass@postgres:5432/postgres
+      NATS_URL: nats://nats:4222
+      NATS_AUTH_USER: auth
+      NATS_AUTH_PASSWORD: auth
+    command: ["result-collector"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend/opendiscovery-frontend
+    restart: unless-stopped
+    environment:
+      NUXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  scanner:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+      args:
+        PACKAGE: client
+        INSTALL_NMAP: "true"
+    restart: unless-stopped
+    profiles:
+      - scanner
+    environment:
+      OPENDISCOVERY_NATS_URL: nats://nats:4222
+      OPENDISCOVERY_SCANNER_TOKEN: ${OPENDISCOVERY_SCANNER_TOKEN:-}
+      OPENDISCOVERY_NATS_CLIENT_NAME: opendiscovery-scanner-client
+    command: ["python", "client/main.py"]
+    depends_on:
+      - nats
 
 
 volumes:
