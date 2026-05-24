@@ -1,4 +1,7 @@
 # OpenDiscovery
+
+[![pipeline status](https://gitlab.com/CralixRaev/opendiscovery/badges/dev/pipeline.svg)](https://gitlab.com/CralixRaev/opendiscovery/-/commits/dev)
+
 Обнаружение сетевых ресурсов в сети и их визуализация
 
 ## Цель

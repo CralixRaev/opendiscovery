@@ -1,1 +1,1 @@
-import core.utils.password
+from core.utils import password as password

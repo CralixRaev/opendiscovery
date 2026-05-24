@@ -3,7 +3,7 @@ from enum import StrEnum
 
 from tortoise import Model, fields
 
-from core.database import get_read_connection, mark_from_db, use_raw_queries, using_read_connection
+from core.database import mark_from_db, use_raw_queries, using_read_connection
 from core.database.models.scanner import Scanner
 
 

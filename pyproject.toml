@@ -6,11 +6,25 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = []
 
-[tool.uv.sources]
-core = { workspace = true }
-auth = { workspace = true }
-result-collector = { workspace = true }
+[tool.pytest.ini_options]
+pythonpath = [
+    "client",
+]
 
+[tool.aerich]
+tortoise_orm = "core.database.migrations.TORTOISE_ORM"
+location = "./migrations"
+src_folder = "./."
+app = "models"
+
+[tool.uv.sources.core]
+workspace = true
+
+[tool.uv.sources.auth]
+workspace = true
+
+[tool.uv.sources.result-collector]
+workspace = true
 
 [tool.uv.workspace]
 members = [
@@ -18,4 +32,11 @@ members = [
     "services/*",
     "client",
     "cli",
+]
+
+[dependency-groups]
+dev = [
+    "aerich>=0.8.1",
+    "pytest>=8.4.2",
+    "ruff>=0.14.6",
 ]

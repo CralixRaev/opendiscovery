@@ -2,16 +2,14 @@ import tortoise
 import typer
 from tortoise import Tortoise
 
-from core.config import Config
+from core.database import build_tortoise_config
 
 app = typer.Typer()
 
 async def _init():
     await Tortoise.init(
-        db_url=str(Config().postgres_url),
-        modules={'models': ['core.database.models']}
+        config=build_tortoise_config(),
     )
-    await Tortoise.generate_schemas()
 
 @app.command()
 def init():

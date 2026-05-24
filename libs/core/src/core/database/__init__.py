@@ -13,18 +13,23 @@ TModel = TypeVar('TModel', bound=Model)
 PRIMARY_CONNECTION_NAME = "default"
 READ_REPLICA_CONNECTION_NAME = "read_replica"
 MODEL_MODULES = ["core.database.models"]
+AERICH_MODEL_MODULE = "aerich.models"
 
 
-def build_tortoise_config() -> dict:
+def build_tortoise_config(*, include_aerich: bool = False) -> dict:
     connections = {PRIMARY_CONNECTION_NAME: str(settings.postgres_url)}
     if settings.postgres_read_url is not None:
         connections[READ_REPLICA_CONNECTION_NAME] = str(settings.postgres_read_url)
+
+    model_modules = [*MODEL_MODULES]
+    if include_aerich:
+        model_modules.append(AERICH_MODEL_MODULE)
 
     return {
         "connections": connections,
         "apps": {
             "models": {
-                "models": MODEL_MODULES,
+                "models": model_modules,
                 "default_connection": PRIMARY_CONNECTION_NAME,
             },
         },

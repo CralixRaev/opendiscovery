@@ -5,6 +5,7 @@ from typing import Any
 
 import nats
 from core.config import Config
+from core.database import build_tortoise_config
 from core.database.models.discovery import (
     create_scan_job_host_discoveries_for_scanner,
     create_scan_job_port_discoveries_for_scanner,
@@ -26,8 +27,7 @@ SCAN_JOB_RESULT_QUEUE = "opendiscovery-result-collectors"
 async def run() -> None:
     settings = Config()
     await Tortoise.init(
-        db_url=str(settings.postgres_url),
-        modules={"models": ["core.database.models"]},
+        config=build_tortoise_config(),
         _enable_global_fallback=True,
     )
 
