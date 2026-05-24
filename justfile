@@ -18,3 +18,19 @@ migrate-history:
 # shows Tortoise ORM migration heads on disk
 migrate-heads:
     uv run python -m tortoise heads
+
+# installs git pre-commit hooks
+pre-commit-install:
+    uv run pre-commit install
+
+# runs pre-commit hooks against all files
+pre-commit-run:
+    uv run pre-commit run --all-files
+
+# runs Ruff checks against the repository
+lint:
+    uv run ruff check .
+
+# formats Python files with Ruff
+format:
+    uv run ruff format .

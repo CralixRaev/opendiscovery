@@ -11,6 +11,9 @@ pythonpath = [
     "client",
 ]
 
+[tool.ruff]
+target-version = "py314"
+
 [tool.tortoise]
 tortoise_orm = "core.database.migrations.TORTOISE_ORM"
 
@@ -33,6 +36,7 @@ members = [
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.6.0",
     "pytest>=8.4.2",
     "ruff>=0.14.6",
 ]
