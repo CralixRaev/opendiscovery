@@ -1,0 +1,128 @@
+@startuml
+left to right direction
+skinparam linetype ortho
+skinparam packageStyle rectangle
+hide circle
+
+note as N1
+tenant_id везде указан как преднамеренная денормализация.
+Не рисуем его, так как иначе
+диаграмма превращается в спагетти :)
+end note
+
+entity Tenant {
+  * id : int <<generated>>
+  --
+  * name : varchar(128)
+}
+
+package "Core" {
+  together {
+    entity User {
+      * id : int <<generated>>
+      --
+      * username : varchar(128)
+      * hashed_password : varchar(512)
+      --
+      * tenant_id : int <<FK>>
+    }
+
+    entity Scanner {
+      * id : int <<generated>>
+      --
+      * name : varchar(128)
+      * created_at : timestamptz <<generated>>
+      --
+      * tenant_id : int <<FK>>
+    }
+
+    entity ScanJob {
+      * id : int <<generated>>
+      --
+      * ip_network : varchar(128)
+      * created_at : timestamptz <<generated>>
+      * finished_at : timestamptz
+      * status : Enum
+      --
+      * tenant_id : int <<FK>>
+      * scanner_id : int <<FK>>
+    }
+  }
+}
+
+package "Assets" {
+  together {
+    entity Host {
+      * id : int <<generated>>
+      --
+      * ip : inet
+      * created_at : timestamptz <<generated>>
+      * updated_at : timestamptz
+      --
+      * tenant_id : int <<FK>>
+    }
+
+    entity HostPort {
+      * id : int <<generated>>
+      --
+      * port_id : int <<FK>>
+      * host_id : int <<FK>>
+      * created_at : timestamptz <<generated>>
+      * updated_at : timestamptz
+      --
+      * tenant_id : int <<FK>>
+    }
+
+    entity Port {
+      * id : int <<generated>>
+      --
+      * number : int
+      * service_name : varchar(128)
+      * created_at : timestamptz <<generated>>
+      * updated_at : timestamptz
+      --
+      * tenant_id : int <<FK>>
+    }
+  }
+}
+
+package "Discovery results" {
+  together {
+    entity ScanJobHostDiscovery {
+      * id : int <<generated>>
+      --
+      * scan_job_id : int <<FK>>
+      * host_id : int <<FK>>
+      --
+      * tenant_id : int <<FK>>
+    }
+
+    entity ScanJobPortDiscovery {
+      * id : int <<generated>>
+      --
+      * scan_job_id : int <<FK>>
+      * host_port_id : int <<FK>>
+      --
+      * tenant_id : int <<FK>>
+    }
+  }
+}
+
+N1 .. Tenant
+
+Tenant ||--|{ User
+Tenant ||--|{ Scanner
+Tenant ||--|{ ScanJob
+
+Scanner ||--|{ ScanJob
+
+Host ||--|{ HostPort
+Port ||--|{ HostPort
+
+ScanJob ||--|{ ScanJobHostDiscovery
+ScanJob ||--|{ ScanJobPortDiscovery
+
+Host ||--|{ ScanJobHostDiscovery
+HostPort ||--|{ ScanJobPortDiscovery
+
+@enduml

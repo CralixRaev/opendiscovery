@@ -1,0 +1,47 @@
+@startuml
+!NEW_C4_STYLE=1
+
+%set_variable_value("RELATIVE_INCLUDE", "./includes")
+!include ./includes/C4.puml
+!include ./includes/C4_Container.puml
+
+'!$ICONURL = "https://raw.githubusercontent.com/tupadr3/plantuml-icon-font-sprites/v3.0.0/icons"
+'!include ./includes/icons/common.puml
+'!include $ICONURL/devicons2/fastapi.puml
+'!include $ICONURL/devicons/python.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Container diagram for OpenDiscovery
+
+Person(tenant_admin, "Tenant Admin")
+
+System_Boundary(boundary, "OpenDiscovery") {
+    Container(spa, "SPA", "React", "Frontend for managing scanners and their jobs and looking at results")
+    Container(backend, "Backend", "FastAPI", "Main for backend for SPA")
+
+    Container(resultProcessor, "Result processor", "Python", "Result processor for job results")
+
+    ContainerDb(postgres, "Main database", "PostgreSQL", "Database for storing users, scanners and scan results")
+    ContainerQueue(nats, "Main queue", "Nats JetStream", "MQ for scanner jobs")
+
+    Container(scanner, "Scanner", "Python", "Network scanner. Scan by jobs")
+}
+
+Container_Ext(host, "External host", $descr="External host to be scanned")
+
+Rel(tenant_admin, spa, "Uses", https)
+
+Rel(spa, backend, "Uses", https)
+
+Rel(backend, postgres, "Reads and writes to", "postgres protocol")
+Rel(backend, nats, "Publishes jobs to", "nats protocol")
+
+Rel(resultProcessor, nats, "Reads jobs results", "nats protocol")
+Rel(resultProcessor, postgres, "Writes job results to", "postgres protocol")
+
+Rel(scanner, nats, "Reads jobs from", "nats protocol")
+Rel(scanner, nats, "Publishes job result", "nats protocol")
+
+Rel(scanner, host, "Scans host", "tcp/udp")
+@enduml

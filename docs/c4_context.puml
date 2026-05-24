@@ -1,0 +1,22 @@
+@startuml
+!NEW_C4_STYLE=1
+
+%set_variable_value("RELATIVE_INCLUDE", "./includes")
+!include ./includes/C4.puml
+!include ./includes/C4_Context.puml
+
+!$ICONURL = "https://raw.githubusercontent.com/tupadr3/plantuml-icon-font-sprites/v3.0.0/icons"
+!include ./includes/icons/common.puml
+!include $ICONURL/devicons2/fastapi.puml
+!include $ICONURL/devicons/python.puml
+
+LAYOUT_WITH_LEGEND()
+
+title System context diagram for OpenDiscovery
+
+Person(tenant_admin, "Tenant Admin")
+
+System(opendiscovery, "OpenDiscovery", "Allows tenants to discover network resources on their networks")
+
+Rel(tenant_admin, opendiscovery, "Adds scanners, creates scan jobs and view scan results")
+@enduml
