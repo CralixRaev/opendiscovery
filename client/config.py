@@ -1,4 +1,4 @@
-from pydantic import AliasChoices, Field
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from scanner_token import decode_unverified_claims

@@ -1,4 +1,7 @@
 # OpenDiscovery
+
+[![CI](https://github.com/CralixRaev/opendiscovery/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/CralixRaev/opendiscovery/actions/workflows/ci.yml)
+
 Обнаружение сетевых ресурсов в сети и их визуализация
 
 ## Цель
@@ -35,3 +38,29 @@
 * Очередь сообщений - NATS.io
 * Фронт - React
 * База - PostgreSQL
+
+## Запуск в Docker
+
+Для локального запуска можно сразу поднять весь control-plane стек:
+
+```bash
+docker compose up --build
+```
+
+Frontend будет доступен на `http://localhost:3000`, backend API - на `http://localhost:8000`.
+
+В compose уже есть dev `AUTH_ISSUER_SEED`, который соответствует `authorization.auth_callout.issuer`
+в `configs/natsio.conf`. Для production замените пару ключей:
+
+```bash
+cp .env.example .env
+```
+
+Если генерируете новый account nkey через `nsc generate nkey --account`, положите seed
+в `.env`, а public key пропишите в `configs/natsio.conf`.
+
+Scanner-клиент запускается отдельным profile, потому что ему нужен токен созданного сканера:
+
+```bash
+OPENDISCOVERY_SCANNER_TOKEN="<token from UI/API>" docker compose --profile scanner up --build scanner
+```

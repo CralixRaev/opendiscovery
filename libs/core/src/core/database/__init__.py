@@ -13,6 +13,7 @@ TModel = TypeVar('TModel', bound=Model)
 PRIMARY_CONNECTION_NAME = "default"
 READ_REPLICA_CONNECTION_NAME = "read_replica"
 MODEL_MODULES = ["core.database.models"]
+MIGRATIONS_MODULE = "migrations.models"
 
 
 def build_tortoise_config() -> dict:
@@ -26,6 +27,7 @@ def build_tortoise_config() -> dict:
             "models": {
                 "models": MODEL_MODULES,
                 "default_connection": PRIMARY_CONNECTION_NAME,
+                "migrations": MIGRATIONS_MODULE,
             },
         },
         "use_tz": True,

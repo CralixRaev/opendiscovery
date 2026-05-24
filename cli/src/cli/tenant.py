@@ -3,15 +3,14 @@ import typer
 from tortoise import Tortoise
 from tortoise.transactions import in_transaction
 
-from core.config import Config
+from core.database import build_tortoise_config
 from core.database.models.tenant import create_tenant
 
 app = typer.Typer()
 
 async def _create_tenant(name: str):
     await Tortoise.init(
-        db_url=str(Config().postgres_url),
-        modules={'models': ['core.database.models']}
+        config=build_tortoise_config(),
     )
 
     async with in_transaction() as connection:
